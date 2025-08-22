@@ -1,0 +1,16 @@
+streamlit==1.28.1
+pandas==2.1.3
+plotly==5.17.0
+langchain==0.0.350
+langchain-community==0.0.3
+langchain-openai==0.0.2
+chromadb==0.4.18
+sentence-transformers==2.2.2
+openai==1.3.7
+python-dotenv==1.0.0
+numpy==1.24.3
+scikit-learn==1.3.2
+faiss-cpu==1.7.4
+tiktoken==0.5.1
+pydantic==2.5.0
+typing-extensions==4.8.0
