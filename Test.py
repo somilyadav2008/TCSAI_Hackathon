@@ -14,3 +14,5 @@ faiss-cpu==1.7.4
 tiktoken==0.5.1
 pydantic==2.5.0
 typing-extensions==4.8.0
+
+Somilsk-proj-sk-proj-biBtBIg4Ji571t502JWPK1W8_KwQTOYigVhxxtL5JFgqSUssuSBJX8Cco-2oR8FeSoad2Sq611T3BlbkFJR3Qmw0S1trNMBQLpF7IrJpHxaaOhKao3rwkCjNWx7eb0dDJMVqNTqtzfZGIa5wFMDArWwkZaIAbiBtBIg4Ji571t502JWPK1W8_KwQTOYigVhxxtL5JFgqSUssuSBJX8Cco-2oR8FeSoad2Sq611T3BlbkFJR3Qmw0S1trNMBQLpF7IrJpHxaaOhKao3rwkCjNWx7eb0dDJMVqNTqtzfZGIa5wFMDArWwkZaIASomil
