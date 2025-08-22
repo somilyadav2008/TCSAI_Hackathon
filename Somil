@@ -1,0 +1,156 @@
+from langchain.agents import initialize_agent, AgentType
+from langchain.tools import Tool
+from langchain.chat_models import ChatOpenAI
+from langchain.memory import ConversationBufferMemory
+
+# ------- Simulated Data Inputs ----------
+SAMPLE_LOGS = """
+2025-08-20 14:23:05 ERROR 500 Internal Server Error while processing transaction ID 342351
+2025-08-20 14:23:06 Transaction failed due to timeout in response from core banking system
+2025-08-20 14:23:10 Warning: Transaction rollback initiated for user X123
+"""
+
+SAMPLE_MANUAL = """
+If the system reports 'Error 500', it typically indicates internal server issues. Check server load and application logs.
+For transaction timeouts, verify connectivity between banking services and databases. Network latency might be a factor.
+In case of transaction failures, validate database transaction logs and rollback statuses.
+"""
+
+PROBLEM_DESCRIPTION = "Users report frequent transaction failures during peak hours with intermittent errors and slow response."
+TEST_SCENARIO = (
+    "A transaction submitted through the banking portal intermittently "
+    "fails with an internal error and timeout messages in the logs. "
+    "The system must diagnose, resolve, and validate the resolution."
+)
+
+# ------------ Agent Functions (Tools) -------------
+def log_analysis_fn(logs: str) -> str:
+    issues = []
+    text = logs.lower()
+    if "timeout" in text:
+        issues.append("Network timeout or connectivity failure")
+    if "error 500" in text:
+        issues.append("Internal server error")
+    if "transaction failed" in text:
+        issues.append("Transaction failure")
+    if not issues:
+        issues.append("Unclassified issue")
+    return "; ".join(issues)
+
+def diagnostic_fn(input_text: str) -> str:
+    return f"Diagnosis based on input:\n{input_text}\n-> Likely server/database connectivity issue during peak load."
+
+def resolution_fn(input_text: str) -> str:
+    return (
+        "Step-by-step resolution:\n"
+        "1. Check server resource utilization during peak hours.\n"
+        "2. Inspect and optimize database connectivity.\n"
+        "3. Review and improve transaction rollback error handling.\n"
+        "4. Monitor for recurring 'Error 500' events.\n"
+        "5. Run maintenance scripts from manual."
+    )
+
+def validation_fn(input_text: str) -> str:
+    return (
+        "Validation Feedback:\n"
+        "The resolution covers server, DB, and error handling. Ensure performance monitoring is set and rollback logic tested."
+    )
+
+# ----------- LangChain Tools ----------------
+log_analysis_tool = Tool(
+    name="LogAnalysis",
+    func=log_analysis_fn,
+    description="Analyze banking logs for maintenance issues."
+)
+
+diagnostic_tool = Tool(
+    name="Diagnostic",
+    func=diagnostic_fn,
+    description="Diagnose maintenance problems using logs and manuals."
+)
+
+resolution_tool = Tool(
+    name="ResolutionGenerator",
+    func=resolution_fn,
+    description="Generate maintenance resolution instructions."
+)
+
+validation_tool = Tool(
+    name="Validation",
+    func=validation_fn,
+    description="Validate resolution instructions in a given scenario."
+)
+
+# ------------ LLM & Memory Initialization -------------
+llm = ChatOpenAI(model_name="gpt-4", temperature=0)
+
+memory_agent1 = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+memory_agent2 = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+memory_agent3 = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+memory_agent4 = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+# ------------ Agents Initialization (LangChain Official) -------------
+agent1 = initialize_agent(
+    tools=[log_analysis_tool],
+    llm=llm,
+    agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
+    memory=memory_agent1,
+    verbose=True
+)
+
+agent2 = initialize_agent(
+    tools=[diagnostic_tool],
+    llm=llm,
+    agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
+    memory=memory_agent2,
+    verbose=True
+)
+
+agent3 = initialize_agent(
+    tools=[resolution_tool],
+    llm=llm,
+    agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
+    memory=memory_agent3,
+    verbose=True
+)
+
+agent4 = initialize_agent(
+    tools=[validation_tool],
+    llm=llm,
+    agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
+    memory=memory_agent4,
+    verbose=True
+)
+
+# ------------- Orchestrator Example -------------
+def full_maintenance_workflow(problem, logs, manual, scenario):
+    # 1. Run Log Analysis Agent
+    log_issues = agent1.run(f"Analyze these logs: {logs}")
+    
+    # 2. Run Diagnostic Agent
+    diagnostic_input = f"Problem: {problem}\nLogAnalysis: {log_issues}\nManual: {manual}"
+    diagnosis = agent2.run(f"Diagnose issue: {diagnostic_input}")
+    
+    # 3. Run Resolution Agent
+    resolution_input = f"Diagnosis: {diagnosis}\nManual: {manual}"
+    resolution = agent3.run(f"Generate resolution: {resolution_input}")
+    
+    # 4. Run Validation Agent
+    validation_input = f"Resolution: {resolution}\nScenario: {scenario}"
+    validation = agent4.run(f"Validate resolution: {validation_input}")
+
+    return {
+        "log_analysis": log_issues,
+        "diagnosis": diagnosis,
+        "resolution": resolution,
+        "validation": validation,
+        "memory_agent1": memory_agent1.chat_memory.messages,
+        "memory_agent2": memory_agent2.chat_memory.messages,
+        "memory_agent3": memory_agent3.chat_memory.messages,
+        "memory_agent4": memory_agent4.chat_memory.messages
+    }
+
+if __name__ == "__main__":
+    results = full_maintenance_workflow(PROBLEM_DESCRIPTION, SAMPLE_LOGS, SAMPLE_MANUAL, TEST_SCENARIO)
+    from pprint import pprint
+    pprint(results)
