@@ -17,3 +17,13 @@ typing-extensions==4.8.0
 
 Somilsk-proj-sk-proj-biBtBIg4Ji571t502JWPK1W8_KwQTOYigVhxxtL5JFgqSUssuSBJX8Cco-2oR8FeSoad2Sq611T3BlbkFJR3Qmw0S1trNMBQLpF7IrJpHxaaOhKao3rwkCjNWx7eb0dDJMVqNTqtzfZGIa5wFMDArWwkZaIAbiBtBIg4Ji571t502JWPK1W8_KwQTOYigVhxxtL5JFgqSUssuSBJX8Cco-2oR8FeSoad2Sq611T3BlbkFJR3Qmw0S1trNMBQLpF7IrJpHxaaOhKao3rwkCjNWx7eb0dDJMVqNTqtzfZGIa5wFMDArWwkZaIASomil
 Somilsk-proj-rOgyaGAGno3eaeUuOI9nxkbhZWZ3Yy48VNqfJqTjFL6p82DWCh4oEGoXDQXtgP0NUxFmvcegGcT3BlbkFJMxggnrJnMDgo7bZ-j7Xm_RtopZy5a_9wgxvlQylIz3JMJ8sGmxwZfNnfDjBvJT_yuLuilo1SsAsomil
+
+
+Flow of the Application Maintenance Issue Resolver
+User reports a problem (error code or issue description).
+Agent searches knowledge (logs, manuals, past issues).
+Agent retrieves relevant information (causes, steps, resolutions).
+Agent reasons with this context using AI.
+Agent provides clear step-by-step solution to the user.
+Agent remembers key facts for future queries.
+👉 Short and clear: Report → Search → Retrieve → Reason → Resolve → Remember.
