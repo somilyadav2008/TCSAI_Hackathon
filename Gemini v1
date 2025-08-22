@@ -1,0 +1,187 @@
+import os
+import pandas as pd
+from dotenv import load_dotenv
+from rich.console import Console
+from rich.panel import Panel
+
+# LangChain Imports
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores import FAISS
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.agents import Tool, AgentExecutor, create_openai_tools_agent
+from langchain_community.document_loaders import UnstructuredMarkdownLoader
+from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
+from langchain.memory import ConversationBufferMemory
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import AIMessage, HumanMessage
+
+# --- CONSTANTS ---
+DATA_DIR = "data"
+LOG_FILE = os.path.join(DATA_DIR, "maintenance_logs.csv")
+MANUAL_FILE = os.path.join(DATA_DIR, "troubleshooting_manual.md")
+AGENT_MODEL = "gpt-4-turbo" # Powerful model for reasoning
+RAG_MODEL = "gpt-3.5-turbo"  # Cost-effective model for grounded QA
+
+# --- Main Agent Class ---
+class BankingIssueResolverAgent:
+    """
+    An advanced AI agent for diagnosing and resolving banking application maintenance issues.
+    """
+    def __init__(self):
+        self.console = Console()
+        self._setup_environment()
+        self.llm = ChatOpenAI(temperature=0, model_name=AGENT_MODEL)
+        self.agent_executor = self._initialize_agent()
+
+    def _setup_environment(self):
+        """Loads environment variables."""
+        load_dotenv()
+        if not os.getenv("OPENAI_API_KEY"):
+            raise ValueError("OPENAI_API_KEY not found in .env file")
+
+    def _create_rag_tool(self) -> Tool:
+        """Creates a sophisticated RAG tool for the troubleshooting manual."""
+        self.console.print("[bold cyan]⚙️  Creating RAG tool for troubleshooting manual...[/bold cyan]")
+        
+        # Load and split documents
+        loader = UnstructuredMarkdownLoader(MANUAL_FILE)
+        docs = loader.load()
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=150)
+        split_docs = text_splitter.split_documents(docs)
+        
+        # Create vector store and retriever
+        embeddings = OpenAIEmbeddings()
+        vectorstore = FAISS.from_documents(split_docs, embeddings)
+        retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+
+        # Define a specific prompt for the RAG chain
+        rag_prompt = ChatPromptTemplate.from_template(
+            """**Answer the user's question based ONLY on the provided context.**
+            
+            **Context:**
+            {context}
+            
+            **Question:**
+            {input}
+            """
+        )
+        
+        # Create the document chain and the full retrieval chain
+        rag_llm = ChatOpenAI(temperature=0, model_name=RAG_MODEL)
+        document_chain = create_stuff_documents_chain(rag_llm, rag_prompt)
+        retrieval_chain = create_retrieval_chain(retriever, document_chain)
+        
+        return Tool(
+            name="TroubleshootingManualSearch",
+            func=lambda q: retrieval_chain.invoke({"input": q})["answer"],
+            description="""
+            Use this to find causes and step-by-step resolution instructions for application issues.
+            This is your primary tool for 'how-to' or 'why' questions regarding problems.
+            Input should be a detailed description of the issue.
+            """
+        )
+
+    def _create_pandas_tool(self) -> Tool:
+        """Creates a Pandas DataFrame agent for querying logs."""
+        self.console.print("[bold cyan]⚙️  Creating Pandas tool for log analysis...[/bold cyan]")
+        try:
+            df = pd.read_csv(LOG_FILE)
+            pandas_agent = create_pandas_dataframe_agent(
+                ChatOpenAI(temperature=0, model_name=AGENT_MODEL),
+                df,
+                verbose=False, # Set to False for cleaner output, True for debugging
+                agent_type="openai-tools",
+                handle_parsing_errors=True
+            )
+            return Tool(
+                name="MaintenanceLogAnalyzer",
+                func=pandas_agent.invoke,
+                description="""
+                Use this to answer quantitative or specific questions about historical maintenance logs.
+                It can find statuses, count issues, or retrieve details for a specific error code.
+                Input should be a clear, direct question about the log data.
+                """
+            )
+        except FileNotFoundError:
+            self.console.print(f"[bold red]Error: Log file not found at {LOG_FILE}[/bold red]")
+            return None
+
+    def _initialize_agent(self) -> AgentExecutor:
+        """Initializes the main conversational agent executor."""
+        self.console.print("[bold cyan]🤖 Initializing the main agent...[/bold cyan]")
+        
+        tools = [tool for tool in [self._create_rag_tool(), self._create_pandas_tool()] if tool]
+        if not tools:
+            raise RuntimeError("Failed to create any tools. Exiting.")
+
+        # This is the core prompt that defines the agent's behavior
+        agent_system_prompt = """
+        You are an expert Senior Reliability Engineer for a major banking application.
+        Your name is "Gemini Resolve".
+        
+        **Your Mission:** Assist maintenance team members by diagnosing issues and providing clear, actionable resolution steps.
+        
+        **Your Tools:**
+        1. **TroubleshootingManualSearch**: Use for qualitative questions about *how* to fix something.
+        2. **MaintenanceLogAnalyzer**: Use for quantitative questions about *what* is in the logs.
+        
+        **Reasoning Process:**
+        1.  **Analyze the Query**: Understand if the user wants a solution/explanation ('how'/'why') or a data lookup ('what'/'how many'/'find').
+        2.  **Select the Right Tool**:
+            - If it's about fixing an error, understanding a cause, or needs step-by-step instructions -> Use `TroubleshootingManualSearch`.
+            - If it's about a specific error code, status, module, or counting log entries -> Use `MaintenanceLogAnalyzer`.
+        3.  **Formulate the Final Answer**:
+            - Synthesize the tool's output into a clear, concise, and helpful response.
+            - If you provide steps, number them.
+            - If you look up data, present it clearly.
+            - Always maintain a professional and helpful tone.
+            - If you cannot answer, state that clearly. Do not make up information.
+        """
+        
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", agent_system_prompt),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ])
+        
+        agent = create_openai_tools_agent(self.llm, tools, prompt)
+        
+        memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+        
+        return AgentExecutor(agent=agent, tools=tools, memory=memory, verbose=True, handle_parsing_errors=True)
+
+    def run_interactive_session(self):
+        """Runs the main interactive loop for the user."""
+        self.console.print(Panel("[bold green]🏦 Welcome to the Banking Application Maintenance Issue Resolver[/bold green]\nI'm Gemini Resolve, your AI SRE assistant. How can I help you?",
+                                 title="[yellow]Gemini Resolve[/yellow]", border_style="green"))
+        
+        while True:
+            try:
+                user_input = self.console.input("[bold cyan]You: [/bold cyan]")
+                if user_input.lower() in ["quit", "exit"]:
+                    self.console.print("[bold yellow]🤖 Goodbye![/bold yellow]")
+                    break
+                
+                with self.console.status("[bold magenta]Thinking...[/bold magenta]", spinner="dots"):
+                    response = self.agent_executor.invoke({"input": user_input})
+                
+                self.console.print(Panel(response["output"], title="[yellow]Gemini Resolve[/yellow]", border_style="yellow"))
+
+            except (KeyboardInterrupt, EOFError):
+                self.console.print("\n[bold yellow]🤖 Session ended. Goodbye![/bold yellow]")
+                break
+            except Exception as e:
+                self.console.print(f"[bold red]An unexpected error occurred: {e}[/bold red]")
+                break
+
+# --- Main Execution ---
+if __name__ == "__main__":
+    try:
+        resolver_agent = BankingIssueResolverAgent()
+        resolver_agent.run_interactive_session()
+    except (ValueError, RuntimeError) as e:
+        print(f"❌ Critical Error: {e}")
+
