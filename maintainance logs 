@@ -1,0 +1,21 @@
+Timestamp,Module,Issue,ErrorCode,Status
+2025-08-01 09:45:12,Login Service,User session timeout too early,ERR1001,Unresolved
+2025-08-01 10:07:18,Login Service,Multiple failed login attempts – account lockout,ERR1002,Resolved
+2025-08-01 10:15:07,Transaction Engine,Transaction rollback due to deadlock,ERR2001,Auto-recovered
+2025-08-01 10:22:42,Transaction Engine,Duplicate transaction detected,ERR2002,Escalated
+2025-08-01 10:29:33,Transaction Engine,Cross-branch transaction sync delay,ERR2003,Monitoring
+2025-08-01 10:36:10,Payment Gateway,Timeout while connecting to VISA API,ERR3001,Escalated
+2025-08-01 10:40:50,Payment Gateway,Invalid checksum in payment packet,ERR3002,Unresolved
+2025-08-01 10:49:22,Loan Processing,Batch job stuck at 65%,ERR4001,Unresolved
+2025-08-01 10:55:31,Loan Processing,EMI auto-debit failed for 50 customers,ERR4002,Escalated
+2025-08-01 11:03:07,Database Layer,High CPU usage detected (>90%),ERR5001,Monitoring
+2025-08-01 11:10:44,Database Layer,Deadlock in customer_accounts table,ERR5002,Unresolved
+2025-08-01 11:17:29,Database Layer,Backup job failed – insufficient storage,ERR5003,Escalated
+2025-08-01 11:24:01,Core Banking,Account balance mismatch in reconciliation,ERR6001,Escalated
+2025-08-01 11:29:15,Core Banking,Interest calculation error for savings accounts,ERR6002,Unresolved
+2025-08-01 11:35:47,Core Banking,Cheque clearing delay beyond SLA,ERR6003,Monitoring
+2025-08-01 11:42:21,Reporting Module,End-of-day report generation failed,ERR7001,Unresolved
+2025-08-01 11:49:59,Reporting Module,Incorrect monthly loan report figures,ERR7002,Escalated
+2025-08-01 11:55:32,Notification Service,SMS gateway unreachable,ERR8001,Auto-retry
+2025-08-01 12:01:08,Notification Service,Email queue backlog >10,000,ERR8002,Monitoring
+2025-08-01 12:08:56,Security & Audit,Suspicious admin login from unknown IP,ERR9001,Escalated
