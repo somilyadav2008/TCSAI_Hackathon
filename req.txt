@@ -1,0 +1,8 @@
+langchain
+langchain-openai
+pandas
+faiss-cpu
+unstructured
+tiktoken
+python-dotenv
+rich  # <-- Add this line
